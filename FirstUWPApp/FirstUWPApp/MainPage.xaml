@@ -9,6 +9,8 @@
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
     <Grid>
-
+        <Rectangle Fill="Green" Width="100" Height="100">
+            
+        </Rectangle>
     </Grid>
 </Page>
