@@ -16,6 +16,9 @@ namespace FirstUWPApp
 	{
 	public:
 		MainPage();
+	private:
+		void target_PointerPressed(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
+		void target_PointerReleased(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
 
 	};
 }

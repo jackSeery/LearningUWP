@@ -24,4 +24,24 @@ using namespace Windows::UI::Xaml::Navigation;
 MainPage::MainPage()
 {
 	InitializeComponent();
+
+	// pointer press/release handlers
+	pressedTarget->PointerPressed += ref new PointerEventHandler(this, &MainPage::target_PointerPressed);
+	pressedTarget->PointerReleased += ref new PointerEventHandler(this, &MainPage::target_PointerReleased);
+}
+
+// A PointerPressed event is sent whenever a mouse button, finger, or pen is pressed to make
+// contact with an object
+void MainPage::target_PointerPressed(Object^ sender, PointerRoutedEventArgs^ e)
+{
+	pressedTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
+	pressedTargetText->Text = "Pointer Pressed";
+}
+
+// A PointerReleased event is sent whenever a mouse button, finger, or pen is released to remove
+// contact from an object
+void MainPage::target_PointerReleased(Object^ sender, PointerRoutedEventArgs^ e)
+{
+	pressedTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
+	pressedTargetText->Text = "Pointer Released";
 }
