@@ -25,102 +25,219 @@ MainPage::MainPage()
 {
 	InitializeComponent();
 
-	// pointer press/release handlers
-	pressedTarget->PointerPressed += ref new PointerEventHandler(this, &MainPage::target_PointerPressed);
-	pressedTarget->PointerReleased += ref new PointerEventHandler(this, &MainPage::target_PointerReleased);
-
-	enterExitTarget->PointerEntered += ref new Windows::UI::Xaml::Input::PointerEventHandler(this, &FirstUWPApp::MainPage::target_PointerEntered);
-	enterExitTarget->PointerExited += ref new Windows::UI::Xaml::Input::PointerEventHandler(this, &FirstUWPApp::MainPage::target_PointerExited);
-
-	tapTarget->Tapped += ref new Windows::UI::Xaml::Input::TappedEventHandler(this, &FirstUWPApp::MainPage::target_Tapped);
-	tapTarget->DoubleTapped += ref new Windows::UI::Xaml::Input::DoubleTappedEventHandler(this, &FirstUWPApp::MainPage::target_DoubleTapped);
-
-	holdTarget->Holding += ref new Windows::UI::Xaml::Input::HoldingEventHandler(this, &FirstUWPApp::MainPage::target_Holding);
-	holdTarget->RightTapped += ref new Windows::UI::Xaml::Input::RightTappedEventHandler(this, &FirstUWPApp::MainPage::target_RightTapped);
-
+	// Add event handlers
+	mainCanvas->PointerPressed += ref new PointerEventHandler(this, &MainPage::Pointer_Pressed);
+	mainCanvas->PointerMoved += ref new PointerEventHandler(this, &MainPage::Pointer_Moved);
+	mainCanvas->PointerReleased += ref new PointerEventHandler(this, &MainPage::Pointer_Released);
+	mainCanvas->PointerExited += ref new PointerEventHandler(this, &MainPage::Pointer_Released);
+	mainCanvas->PointerEntered += ref new PointerEventHandler(this, &MainPage::Pointer_Entered);
+	mainCanvas->PointerWheelChanged += ref new PointerEventHandler(this, &MainPage::Pointer_Wheel_Changed);
 }
 
-// A PointerPressed event is sent whenever a mouse button, finger, or pen is pressed to make
-// contact with an object
-void MainPage::target_PointerPressed(Object^ sender, PointerRoutedEventArgs^ e)
+void MainPage::Pointer_Pressed(Platform::Object^ sender, PointerRoutedEventArgs^ e)
 {
-	pressedTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	pressedTargetText->Text = "Pointer Pressed";
+	Windows::UI::Input::PointerPoint^ currentPoint = e->GetCurrentPoint(mainCanvas);
+
+	// Retrieve the properties for the curret PointerPoint and display
+	// them alongside the pointer's location on screen
+	CreateOrUpdatePropertyPopUp(currentPoint);
 }
 
-// A PointerReleased event is sent whenever a mouse button, finger, or pen is released to remove
-// contact from an object
-void MainPage::target_PointerReleased(Object^ sender, PointerRoutedEventArgs^ e)
+void MainPage::Pointer_Entered(Platform::Object^ sender, PointerRoutedEventArgs^ e)
 {
-	pressedTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-	pressedTargetText->Text = "Pointer Released";
-}
+	Windows::UI::Input::PointerPoint^ currentPoint = e->GetCurrentPoint(mainCanvas);
 
-// A PointerEntered event is sent whenever a mouse cursor is moved on top of an object
-// or when a pen or finger is dragged on top of an object
-void MainPage::target_PointerEntered(Object^ sender, PointerRoutedEventArgs^ e)
-{
-	enterExitTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	enterExitTargetText->Text = "Pointer Entered";
-}
-
-// A PointerExited event is sent whenever a mouse cursor is moved off of an object
-// or when a pen or finger is dragged off of an object
-void MainPage::target_PointerExited(Object^ sender, PointerRoutedEventArgs^ e)
-{
-	enterExitTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-	enterExitTargetText->Text = "Pointer Exited";
-}
-
-// A Tapped event is sent whenever a mouse is clicked or a finger or pen taps
-// the object
-void MainPage::target_Tapped(Object^ sender, TappedRoutedEventArgs^ e)
-{
-	tapTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::DeepSkyBlue);
-	tapTargetText->Text = "Tapped";
-}
-
-// A DoubleTapped event is sent whenever a mouse is double-clicked or a finger or pen taps
-// the object twice in quick succession
-void MainPage::target_DoubleTapped(Object^ sender, DoubleTappedRoutedEventArgs^ e)
-{
-	tapTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	tapTargetText->Text = "Double-Tapped";
-}
-
-// A RightTapped event is sent whenever a mouse is right-clicked or a finger or pen
-// completes a Holding event.  This is intended to be used to handle secondary actions
-// on an object.
-void MainPage::target_RightTapped(Object^ sender, RightTappedRoutedEventArgs^ e)
-{
-	holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	holdTargetText->Text = "Right Tapped";
-}
-
-// A Holding event is sent whenever a finger or pen is pressed and held on top of
-// an object.
-// Once a small amount of time has elapsed, the event is sent with a HoldingState
-// of the type HoldingState.Started, indicating that the held threshold has just
-// been passed.
-// When a finger has been lifted after a successful hold, a Holding event is sent
-// with a HoldingState of Completed.
-// If the user cancels the hold after it has been started, but before it completes,
-// a Holding event is sent with a HoldingState of Canceled.
-void MainPage::target_Holding(Object^ sender, HoldingRoutedEventArgs^ e)
-{
-	if (e->HoldingState == Windows::UI::Input::HoldingState::Started)
+	// Determine if the point that entered the canvas is "in contact" with the
+	// screen (mouse button pressed, finger down, or pen down).
+	// This will be encountered if the user touches down in the app surface,
+	// drags their finger off of the app, and drags it back onto the app without
+	// lifting their finger.
+	if (currentPoint->IsInContact)
 	{
-		holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::DeepSkyBlue);
-		holdTargetText->Text = "Holding";
+		CreateOrUpdatePropertyPopUp(currentPoint);
 	}
-	else if (e->HoldingState == Windows::UI::Input::HoldingState::Completed)
+}
+
+void MainPage::Pointer_Moved(Platform::Object^ sender, PointerRoutedEventArgs^ e)
+{
+	// Retrieve the point associated with the current event
+	Windows::UI::Input::PointerPoint^ currentPoint = e->GetCurrentPoint(mainCanvas);
+
+	// Create a popup if the pointer being moved is in contact with the screen
+	if (currentPoint->IsInContact)
 	{
-		holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-		holdTargetText->Text = "Held";
+		CreateOrUpdatePropertyPopUp(currentPoint);
+	}
+}
+
+void MainPage::Pointer_Released(Platform::Object^ sender, PointerRoutedEventArgs^ e)
+{
+	// Retrieve the point associated with the current event
+	Windows::UI::Input::PointerPoint^ currentPoint = e->GetCurrentPoint(mainCanvas);
+
+	// Remove the popup corresponding to the pointer
+	HidePropertyPopUp(currentPoint);
+}
+
+void MainPage::Pointer_Wheel_Changed(Platform::Object^ sender, PointerRoutedEventArgs^ e)
+{
+	// Retrieve the point associated with the current event and record the
+	// mouse wheel delta
+	Windows::UI::Input::PointerPoint^ currentPoint = e->GetCurrentPoint(mainCanvas);
+	if (currentPoint->IsInContact)
+	{
+		CreateOrUpdatePropertyPopUp(currentPoint);
+	}
+}
+
+void MainPage::CreateOrUpdatePropertyPopUp(Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	// Retrieve the properties that are common to all pointers
+	Platform::String^ pointerProperties = GetPointerProperties(currentPoint);
+
+	// Retrieve the properties that are specific to the device type associated
+	// with the current PointerPoint
+	Platform::String^ deviceSpecificProperties = GetDeviceSpecificProperties(currentPoint);
+
+	RenderPropertyPopUp(pointerProperties, deviceSpecificProperties, currentPoint);
+}
+
+// Return the properties that are common to all pointers
+Platform::String^ MainPage::GetPointerProperties(Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	Platform::String^ sb = ref new Platform::String();
+	sb += "ID: " + currentPoint->PointerId;
+	sb += "\nX: " + currentPoint->Position.X;
+	sb += "\nY: " + currentPoint->Position.Y;
+	sb += "\nContact: " + currentPoint->IsInContact + "\n";
+	return sb;
+}
+
+Platform::String^ MainPage::GetDeviceSpecificProperties(Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	Platform::String^ deviceSpecificProperties = "";
+
+	// Detect the type of device being used by examining PointerDeviceType
+	// to distinguish between mouse, touch, and pen
+	switch (currentPoint->PointerDevice->PointerDeviceType)
+	{
+	case Windows::Devices::Input::PointerDeviceType::Mouse:
+		deviceSpecificProperties = GetMouseProperties(currentPoint);
+		break;
+	case Windows::Devices::Input::PointerDeviceType::Pen:
+		deviceSpecificProperties = GetPenProperties(currentPoint);
+		break;
+	case Windows::Devices::Input::PointerDeviceType::Touch:
+		deviceSpecificProperties = GetTouchProperties(currentPoint);
+		break;
+	}
+
+	return deviceSpecificProperties;
+}
+
+// Return the properties that are specific to mice
+Platform::String^ MainPage::GetMouseProperties(Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	Windows::UI::Input::PointerPointProperties^ pointerProperties = currentPoint->Properties;
+	Platform::String^ sb = ref new Platform::String();
+
+	sb += "Left button: " + pointerProperties->IsLeftButtonPressed;
+	sb += "\nRight button: " + pointerProperties->IsRightButtonPressed;
+	sb += "\nMiddle button: " + pointerProperties->IsMiddleButtonPressed;
+	sb += "\nX1 button: " + pointerProperties->IsXButton1Pressed;
+	sb += "\nX2 button: " + pointerProperties->IsXButton2Pressed;
+	sb += "\nMouse wheel delta: " + pointerProperties->MouseWheelDelta;
+
+	return sb;
+}
+
+// Return the properties that are specific to touch
+Platform::String^ MainPage::GetTouchProperties(Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	Windows::UI::Input::PointerPointProperties^ pointerProperties = currentPoint->Properties;
+	Platform::String^ sb = ref new Platform::String();
+
+	sb += "Contact Rect X: " + pointerProperties->ContactRect.X;
+	sb += "\nContact Rect Y: " + pointerProperties->ContactRect.Y;
+	sb += "\nContact Rect Width: " + pointerProperties->ContactRect.Width;
+	sb += "\nContact Rect Height: " + pointerProperties->ContactRect.Height;
+
+	return sb;
+}
+
+// Return the properties that are specific to pen
+Platform::String^ MainPage::GetPenProperties(Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	Windows::UI::Input::PointerPointProperties^ pointerProperties = currentPoint->Properties;
+	Platform::String^ sb = ref new Platform::String();
+
+	sb += "Barrel button: " + pointerProperties->IsBarrelButtonPressed;
+	sb += "\nEraser: " + pointerProperties->IsEraser;
+	sb += "\nPressure: " + pointerProperties->Pressure;
+
+	return sb;
+}
+
+//
+// Popup UI code below
+//
+void MainPage::RenderPropertyPopUp(Platform::String^ pointerProperties, Platform::String^ deviceSpecificProperties, Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	auto it = popups.find(currentPoint->PointerId);
+	if (it != popups.end())
+	{
+		auto tb = dynamic_cast<StackPanel^>(it->second);
+		TextBlock^ pointerText = dynamic_cast<TextBlock^>(tb->Children->GetAt(0));
+		pointerText->Text = pointerProperties;
+		TextBlock^ deviceSpecificText = dynamic_cast<TextBlock^>(tb->Children->GetAt(1));
+		deviceSpecificText->Text = deviceSpecificProperties;
 	}
 	else
 	{
-		holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-		holdTargetText->Text = "Hold Canceled";
+		StackPanel^ pointerPanel = ref new StackPanel();
+		TextBlock^ pointerText = ref new TextBlock();
+		pointerText->Text = pointerProperties;
+		pointerPanel->Children->Append(pointerText);
+
+		TextBlock^ deviceSpecificText = ref new TextBlock();
+		deviceSpecificText->Text = deviceSpecificProperties;
+
+		// Detect the type of device being used by examining PointerDeviceType
+		// to distinguish between mouse, touch, and pen
+		switch (currentPoint->PointerDevice->PointerDeviceType)
+		{
+		case Windows::Devices::Input::PointerDeviceType::Mouse:
+			deviceSpecificText->Foreground = ref new SolidColorBrush(Windows::UI::Colors::Red);
+			break;
+
+		case Windows::Devices::Input::PointerDeviceType::Touch:
+			deviceSpecificText->Foreground = ref new SolidColorBrush(Windows::UI::Colors::Green);
+			break;
+
+		case Windows::Devices::Input::PointerDeviceType::Pen:
+			deviceSpecificText->Foreground = ref new SolidColorBrush(Windows::UI::Colors::Yellow);
+			break;
+		}
+		pointerPanel->Children->Append(deviceSpecificText);
+		popups[currentPoint->PointerId] = pointerPanel;
+		mainCanvas->Children->Append(popups[currentPoint->PointerId]);
+	}
+
+	TranslateTransform^ transform = ref new TranslateTransform();
+	transform->X = currentPoint->Position.X + 24;
+	transform->Y = currentPoint->Position.Y + 24;
+	popups[currentPoint->PointerId]->RenderTransform = transform;
+}
+
+void MainPage::HidePropertyPopUp(Windows::UI::Input::PointerPoint^ currentPoint)
+{
+	auto it = popups.find(currentPoint->PointerId);
+	if (it != popups.end())
+	{
+		auto stackPanel = dynamic_cast<StackPanel^>(it->second);
+		unsigned int index;
+		mainCanvas->Children->IndexOf(stackPanel, &index);
+		mainCanvas->Children->RemoveAt(index);
+		popups.erase(it);
 	}
 }

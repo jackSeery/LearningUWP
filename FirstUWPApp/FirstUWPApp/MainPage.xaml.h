@@ -6,6 +6,7 @@
 #pragma once
 
 #include "MainPage.g.h"
+#include <map>
 
 namespace FirstUWPApp
 {
@@ -17,13 +18,22 @@ namespace FirstUWPApp
 	public:
 		MainPage();
 	private:
-		void target_PointerPressed(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
-		void target_PointerReleased(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
-		void target_PointerEntered(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
-		void target_PointerExited(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
-		void target_Holding(Platform::Object^ sender, Windows::UI::Xaml::Input::HoldingRoutedEventArgs^ e);
-		void target_Tapped(Platform::Object^ sender, Windows::UI::Xaml::Input::TappedRoutedEventArgs^ e);
-		void target_DoubleTapped(Platform::Object^ sender, Windows::UI::Xaml::Input::DoubleTappedRoutedEventArgs^ e);
-		void target_RightTapped(Platform::Object^ sender, Windows::UI::Xaml::Input::RightTappedRoutedEventArgs^ e);
+		void Pointer_Entered(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
+		void Pointer_Pressed(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
+		void Pointer_Moved(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
+		void Pointer_Released(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
+		void Pointer_Wheel_Changed(Platform::Object^ sender, Windows::UI::Xaml::Input::PointerRoutedEventArgs^ e);
+
+		void CreateOrUpdatePropertyPopUp(Windows::UI::Input::PointerPoint^ currentPoint);
+		Platform::String^ GetPointerProperties(Windows::UI::Input::PointerPoint^ currentPoint);
+		Platform::String^ GetDeviceSpecificProperties(Windows::UI::Input::PointerPoint^ currentPoint);
+		Platform::String^ GetMouseProperties(Windows::UI::Input::PointerPoint^ currentPoint);
+		Platform::String^ GetTouchProperties(Windows::UI::Input::PointerPoint^ currentPoint);
+		Platform::String^ GetPenProperties(Windows::UI::Input::PointerPoint^ currentPoint);
+
+		void RenderPropertyPopUp(Platform::String^ pointerProperties, Platform::String^ deviceSpecificProperties, Windows::UI::Input::PointerPoint^ currentPoint);
+		void HidePropertyPopUp(Windows::UI::Input::PointerPoint^ currentPoint);
+
+		std::map<unsigned int, Windows::UI::Xaml::Controls::StackPanel^> popups;
 	};
 }

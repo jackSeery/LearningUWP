@@ -5,34 +5,24 @@
     xmlns:local="using:FirstUWPApp"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
-    <ScrollViewer VerticalScrollMode="Auto" VerticalScrollBarVisibility="Auto">
-        <StackPanel Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Margin="12,10,12,12">
-            <TextBlock Text="User Input Testing" Style="{StaticResource HeaderTextBlockStyle}"/>
+    mc:Ignorable="d">
 
-            <TextBlock Style="{StaticResource SubtitleTextBlockStyle}" Text="Pointer Pressed / Released" Margin="0,12,0,0"/>
-            <Border x:Name="pressedTarget" Background="LightGray" Height="100" Width="150" BorderBrush="Black" BorderThickness="2" HorizontalAlignment="Left" ManipulationMode="None">
-                <TextBlock x:Name="pressedTargetText" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            
-            <TextBlock Margin="0,12,0,0" Style="{StaticResource SubtitleTextBlockStyle}" Text="Pointer Enter / Exit"/>
-            <Border x:Name="enterExitTarget" Background="LightGray" Height="100" Width="150" BorderBrush="Black" BorderThickness="2" HorizontalAlignment="Left" ManipulationMode="None">
-                <TextBlock x:Name="enterExitTargetText" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            
-            <TextBlock Margin="0,12,0,0" Style="{StaticResource SubtitleTextBlockStyle}" Text="Tap / Double-Tap"/>
-            <Border x:Name="tapTarget" Background="LightGray" Height="100" Width="150" BorderBrush="Black" BorderThickness="2" HorizontalAlignment="Left" ManipulationMode="None">
-                <TextBlock x:Name="tapTargetText" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
-            
-            <TextBlock Margin="0,12,0,0" Style="{StaticResource SubtitleTextBlockStyle}" Text="Right-Tap / Press-and-Hold"/>
-            <Border x:Name="holdTarget" Background="LightGray" Height="100" Width="150" BorderBrush="Black" BorderThickness="2" HorizontalAlignment="Left" ManipulationMode="None">
-                <TextBlock x:Name="holdTargetText" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-            </Border>
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Margin="12,10,12,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
 
-            <Button Margin="0, 10, 0, 0" Content="Button"/>
-            <TextBox HorizontalAlignment="Left" Height="32" Width ="120" Margin="0, 10, 0, 0" Text="Wow a text box"/>
-        </StackPanel>
-    </ScrollViewer>
+        <ScrollViewer MaxHeight="150" VerticalScrollMode="Auto" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Description:" Style="{StaticResource HeaderTextBlockStyle}"/>
+                <TextBlock Style="{StaticResource SubheaderTextBlockStyle}" TextWrapping="Wrap">
+                        The PointerPoint class provides basic properties for the input pointer associated with a single mouse, pen/stylus, or touch contact. This scenario demonstrates how to retrieve a PointerPoint object in response to an input event, determine what type of input it is (mouse, pen, or touch), and retrieve properties present for all input types and those specific to its type.
+                </TextBlock>
+            </StackPanel>
+        </ScrollViewer>
+        <TextBlock Grid.Row="1" Text="Touch or click the screen to see information about the current pointer(s)" TextWrapping="Wrap" Padding="0,12,0,0"/>
+        <Canvas Grid.Row="2" Name="mainCanvas" Height="Auto" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Margin="12,10,12,12"/>
+    </Grid>
 </Page>
