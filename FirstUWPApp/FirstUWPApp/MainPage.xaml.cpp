@@ -9,6 +9,7 @@
 using namespace FirstUWPApp;
 
 using namespace Platform;
+using namespace Windows::Devices::Input;
 using namespace Windows::Foundation;
 using namespace Windows::Foundation::Collections;
 using namespace Windows::UI::Xaml;
@@ -25,102 +26,141 @@ MainPage::MainPage()
 {
 	InitializeComponent();
 
-	// pointer press/release handlers
-	pressedTarget->PointerPressed += ref new PointerEventHandler(this, &MainPage::target_PointerPressed);
-	pressedTarget->PointerReleased += ref new PointerEventHandler(this, &MainPage::target_PointerReleased);
+	forceManipulationsToEnd = false;
 
-	enterExitTarget->PointerEntered += ref new Windows::UI::Xaml::Input::PointerEventHandler(this, &FirstUWPApp::MainPage::target_PointerEntered);
-	enterExitTarget->PointerExited += ref new Windows::UI::Xaml::Input::PointerEventHandler(this, &FirstUWPApp::MainPage::target_PointerExited);
+	InitOptions();
 
-	tapTarget->Tapped += ref new Windows::UI::Xaml::Input::TappedEventHandler(this, &FirstUWPApp::MainPage::target_Tapped);
-	tapTarget->DoubleTapped += ref new Windows::UI::Xaml::Input::DoubleTappedEventHandler(this, &FirstUWPApp::MainPage::target_DoubleTapped);
+	// Initialize the transforms that will be used to manipulate the shape
+	InitManipulationTransforms();
 
-	holdTarget->Holding += ref new Windows::UI::Xaml::Input::HoldingEventHandler(this, &FirstUWPApp::MainPage::target_Holding);
-	holdTarget->RightTapped += ref new Windows::UI::Xaml::Input::RightTappedEventHandler(this, &FirstUWPApp::MainPage::target_RightTapped);
+	// Register for the various manipulation events that will occur on the shape
+	manipulateMe->ManipulationStarted += ref new ManipulationStartedEventHandler(this, &MainPage::ManipulateMe_ManipulationStarted);
+	manipulateMe->ManipulationDelta += ref new ManipulationDeltaEventHandler(this, &MainPage::ManipulateMe_ManipulationDelta);
+	manipulateMe->ManipulationCompleted += ref new ManipulationCompletedEventHandler(this, &MainPage::ManipulateMe_ManipulationCompleted);
+	manipulateMe->ManipulationInertiaStarting += ref new ManipulationInertiaStartingEventHandler(this, &MainPage::ManipulateMe_ManipulationInertiaStarting);
 
+	// The ManipulationMode property dictates what manipulation events the element
+	// will listen to.  This will set it to a limited subset of these events.
+	manipulateMe->ManipulationMode =
+		ManipulationModes::TranslateX |
+		ManipulationModes::TranslateY |
+		ManipulationModes::Rotate |
+		ManipulationModes::TranslateInertia |
+		ManipulationModes::RotateInertia;
 }
 
-// A PointerPressed event is sent whenever a mouse button, finger, or pen is pressed to make
-// contact with an object
-void MainPage::target_PointerPressed(Object^ sender, PointerRoutedEventArgs^ e)
+void MainPage::InitManipulationTransforms()
 {
-	pressedTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	pressedTargetText->Text = "Pointer Pressed";
+	transforms = ref new TransformGroup();
+	previousTransform = ref new MatrixTransform();
+	previousTransform->Matrix = Matrix::Identity;
+
+	deltaTransform = ref new CompositeTransform();
+
+	transforms->Children->Append(previousTransform);
+	transforms->Children->Append(deltaTransform);
+
+	// Set the render transform on the rect
+	manipulateMe->RenderTransform = transforms;
 }
 
-// A PointerReleased event is sent whenever a mouse button, finger, or pen is released to remove
-// contact from an object
-void MainPage::target_PointerReleased(Object^ sender, PointerRoutedEventArgs^ e)
+// When a manipulation begins, change the color of the object to reflect
+// that a manipulation is in progress
+void MainPage::ManipulateMe_ManipulationStarted(Platform::Object^ sender, ManipulationStartedRoutedEventArgs^ e)
 {
-	pressedTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-	pressedTargetText->Text = "Pointer Released";
+	forceManipulationsToEnd = false;
+	manipulateMe->Background = ref new SolidColorBrush(Windows::UI::Colors::DeepSkyBlue);
 }
 
-// A PointerEntered event is sent whenever a mouse cursor is moved on top of an object
-// or when a pen or finger is dragged on top of an object
-void MainPage::target_PointerEntered(Object^ sender, PointerRoutedEventArgs^ e)
+// Process the change resulting from a manipulation
+void MainPage::ManipulateMe_ManipulationDelta(Platform::Object^ sender, ManipulationDeltaRoutedEventArgs^ e)
 {
-	enterExitTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	enterExitTargetText->Text = "Pointer Entered";
-}
-
-// A PointerExited event is sent whenever a mouse cursor is moved off of an object
-// or when a pen or finger is dragged off of an object
-void MainPage::target_PointerExited(Object^ sender, PointerRoutedEventArgs^ e)
-{
-	enterExitTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-	enterExitTargetText->Text = "Pointer Exited";
-}
-
-// A Tapped event is sent whenever a mouse is clicked or a finger or pen taps
-// the object
-void MainPage::target_Tapped(Object^ sender, TappedRoutedEventArgs^ e)
-{
-	tapTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::DeepSkyBlue);
-	tapTargetText->Text = "Tapped";
-}
-
-// A DoubleTapped event is sent whenever a mouse is double-clicked or a finger or pen taps
-// the object twice in quick succession
-void MainPage::target_DoubleTapped(Object^ sender, DoubleTappedRoutedEventArgs^ e)
-{
-	tapTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	tapTargetText->Text = "Double-Tapped";
-}
-
-// A RightTapped event is sent whenever a mouse is right-clicked or a finger or pen
-// completes a Holding event.  This is intended to be used to handle secondary actions
-// on an object.
-void MainPage::target_RightTapped(Object^ sender, RightTappedRoutedEventArgs^ e)
-{
-	holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-	holdTargetText->Text = "Right Tapped";
-}
-
-// A Holding event is sent whenever a finger or pen is pressed and held on top of
-// an object.
-// Once a small amount of time has elapsed, the event is sent with a HoldingState
-// of the type HoldingState.Started, indicating that the held threshold has just
-// been passed.
-// When a finger has been lifted after a successful hold, a Holding event is sent
-// with a HoldingState of Completed.
-// If the user cancels the hold after it has been started, but before it completes,
-// a Holding event is sent with a HoldingState of Canceled.
-void MainPage::target_Holding(Object^ sender, HoldingRoutedEventArgs^ e)
-{
-	if (e->HoldingState == Windows::UI::Input::HoldingState::Started)
+	// If the reset button has been pressed, mark the manipulation as completed
+	if (forceManipulationsToEnd)
 	{
-		holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::DeepSkyBlue);
-		holdTargetText->Text = "Holding";
+		e->Complete();
+		return;
 	}
-	else if (e->HoldingState == Windows::UI::Input::HoldingState::Completed)
+
+	previousTransform->Matrix = transforms->Value;
+
+	// Get center point for rotation
+	Point center = previousTransform->TransformPoint(Point(e->Position.X, e->Position.Y));
+	deltaTransform->CenterX = center.X;
+	deltaTransform->CenterY = center.Y;
+
+	// Look at the Delta property of the ManipulationDeltaRoutedEventArgs to retrieve
+	// the rotation, scale, X, and Y changes
+	deltaTransform->Rotation = e->Delta.Rotation;
+	deltaTransform->TranslateX = e->Delta.Translation.X;
+	deltaTransform->TranslateY = e->Delta.Translation.Y;
+}
+
+// When a manipulation that's a result of inertia begins, change the color of the
+// the object to reflect that inertia has taken over
+void MainPage::ManipulateMe_ManipulationInertiaStarting(Platform::Object^ sender, ManipulationInertiaStartingRoutedEventArgs^ e)
+{
+	manipulateMe->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
+}
+
+// When a manipulation has finished, reset the color of the object
+void MainPage::ManipulateMe_ManipulationCompleted(Platform::Object^ sender, ManipulationCompletedRoutedEventArgs^ e)
+{
+	manipulateMe->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
+}
+
+void MainPage::movementAxis_Changed(Platform::Object^ sender, SelectionChangedEventArgs^ e)
+{
+	// Set the object to listen to both X and Y translation events
+	auto mode = manipulateMe->ManipulationMode;
+	auto update = ManipulationModes::TranslateX | ManipulationModes::TranslateY;
+	manipulateMe->ManipulationMode = mode | update;
+
+	ComboBox^ cb = dynamic_cast<ComboBox^>(sender);
+	ComboBoxItem^ selectedItem = dynamic_cast<ComboBoxItem^>((cb)->SelectedItem);
+
+	auto selection = selectedItem->Content->ToString();
+
+	if (selection == L"X only")
 	{
-		holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-		holdTargetText->Text = "Held";
+		// Set the object to not listen for translations on the Y axis
+		auto mode = manipulateMe->ManipulationMode;
+		manipulateMe->ManipulationMode = mode ^ ManipulationModes::TranslateY;
 	}
-	else
+	else if (selection == L"Y only")
 	{
-		holdTarget->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
-		holdTargetText->Text = "Hold Canceled";
+		auto mode = manipulateMe->ManipulationMode;
+		manipulateMe->ManipulationMode = mode ^ ManipulationModes::TranslateX;
+
 	}
+}
+
+void MainPage::InertiaSwitch_Toggled(Platform::Object^ sender, RoutedEventArgs^ e)
+{
+	// Flip the current TranslateInertia and RotateInertia values in response to the
+	// InertiaSwitch being toggled
+	if (manipulateMe != nullptr)
+	{
+		auto mode = manipulateMe->ManipulationMode;
+		auto update = ManipulationModes::TranslateInertia | ManipulationModes::RotateInertia;
+		manipulateMe->ManipulationMode = mode ^ update;
+	}
+}
+
+//
+// More UI code below
+//
+void MainPage::InitOptions()
+{
+	movementAxis->SelectedIndex = 0;
+	inertiaSwitch->IsOn = true;
+}
+
+void MainPage::resetButton_Pressed(Platform::Object^ sender, RoutedEventArgs^ e)
+{
+	forceManipulationsToEnd = true;
+	manipulateMe->RenderTransform = nullptr;
+	movementAxis->SelectedIndex = 0;
+	InitOptions();
+	InitManipulationTransforms();
 }
