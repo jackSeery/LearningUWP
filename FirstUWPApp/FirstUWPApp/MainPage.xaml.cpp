@@ -12,6 +12,7 @@ using namespace Platform;
 using namespace Windows::Devices::Input;
 using namespace Windows::Foundation;
 using namespace Windows::Foundation::Collections;
+using namespace Windows::UI::Input;
 using namespace Windows::UI::Xaml;
 using namespace Windows::UI::Xaml::Controls;
 using namespace Windows::UI::Xaml::Controls::Primitives;
@@ -26,95 +27,29 @@ MainPage::MainPage()
 {
 	InitializeComponent();
 
-	forceManipulationsToEnd = false;
-
 	InitOptions();
 
-	// Initialize the transforms that will be used to manipulate the shape
-	InitManipulationTransforms();
+	// Create a GestureRecognizer which will be used to process the manipulations
+	// done on the rectangle
+	recognizer = ref new GestureRecognizer();
 
-	// Register for the various manipulation events that will occur on the shape
-	manipulateMe->ManipulationStarted += ref new ManipulationStartedEventHandler(this, &MainPage::ManipulateMe_ManipulationStarted);
-	manipulateMe->ManipulationDelta += ref new ManipulationDeltaEventHandler(this, &MainPage::ManipulateMe_ManipulationDelta);
-	manipulateMe->ManipulationCompleted += ref new ManipulationCompletedEventHandler(this, &MainPage::ManipulateMe_ManipulationCompleted);
-	manipulateMe->ManipulationInertiaStarting += ref new ManipulationInertiaStartingEventHandler(this, &MainPage::ManipulateMe_ManipulationInertiaStarting);
-
-	// The ManipulationMode property dictates what manipulation events the element
-	// will listen to.  This will set it to a limited subset of these events.
-	manipulateMe->ManipulationMode =
-		ManipulationModes::TranslateX |
-		ManipulationModes::TranslateY |
-		ManipulationModes::Rotate |
-		ManipulationModes::TranslateInertia |
-		ManipulationModes::RotateInertia;
+	// Create a ManipulationInputProcessor which will listen for events on the
+	// rectangle, process them, and update the rectangle's position, size, and rotation
+	manipulationProcessor = ref new ManipulationInputProcessor(recognizer, manipulateMe, mainCanvas);
 }
 
-void MainPage::InitManipulationTransforms()
+void MainPage::InitOptions()
 {
-	transforms = ref new TransformGroup();
-	previousTransform = ref new MatrixTransform();
-	previousTransform->Matrix = Matrix::Identity;
-
-	deltaTransform = ref new CompositeTransform();
-
-	transforms->Children->Append(previousTransform);
-	transforms->Children->Append(deltaTransform);
-
-	// Set the render transform on the rect
-	manipulateMe->RenderTransform = transforms;
-}
-
-// When a manipulation begins, change the color of the object to reflect
-// that a manipulation is in progress
-void MainPage::ManipulateMe_ManipulationStarted(Platform::Object^ sender, ManipulationStartedRoutedEventArgs^ e)
-{
-	forceManipulationsToEnd = false;
-	manipulateMe->Background = ref new SolidColorBrush(Windows::UI::Colors::DeepSkyBlue);
-}
-
-// Process the change resulting from a manipulation
-void MainPage::ManipulateMe_ManipulationDelta(Platform::Object^ sender, ManipulationDeltaRoutedEventArgs^ e)
-{
-	// If the reset button has been pressed, mark the manipulation as completed
-	if (forceManipulationsToEnd)
-	{
-		e->Complete();
-		return;
-	}
-
-	previousTransform->Matrix = transforms->Value;
-
-	// Get center point for rotation
-	Point center = previousTransform->TransformPoint(Point(e->Position.X, e->Position.Y));
-	deltaTransform->CenterX = center.X;
-	deltaTransform->CenterY = center.Y;
-
-	// Look at the Delta property of the ManipulationDeltaRoutedEventArgs to retrieve
-	// the rotation, scale, X, and Y changes
-	deltaTransform->Rotation = e->Delta.Rotation;
-	deltaTransform->TranslateX = e->Delta.Translation.X;
-	deltaTransform->TranslateY = e->Delta.Translation.Y;
-}
-
-// When a manipulation that's a result of inertia begins, change the color of the
-// the object to reflect that inertia has taken over
-void MainPage::ManipulateMe_ManipulationInertiaStarting(Platform::Object^ sender, ManipulationInertiaStartingRoutedEventArgs^ e)
-{
-	manipulateMe->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
-}
-
-// When a manipulation has finished, reset the color of the object
-void MainPage::ManipulateMe_ManipulationCompleted(Platform::Object^ sender, ManipulationCompletedRoutedEventArgs^ e)
-{
-	manipulateMe->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
+	movementAxis->SelectedIndex = 0;
+	InertiaSwitch->IsOn = true;
 }
 
 void MainPage::movementAxis_Changed(Platform::Object^ sender, SelectionChangedEventArgs^ e)
 {
-	// Set the object to listen to both X and Y translation events
-	auto mode = manipulateMe->ManipulationMode;
-	auto update = ManipulationModes::TranslateX | ManipulationModes::TranslateY;
-	manipulateMe->ManipulationMode = mode | update;
+	if (manipulationProcessor == nullptr)
+	{
+		return;
+	}
 
 	ComboBox^ cb = dynamic_cast<ComboBox^>(sender);
 	ComboBoxItem^ selectedItem = dynamic_cast<ComboBoxItem^>((cb)->SelectedItem);
@@ -123,44 +58,220 @@ void MainPage::movementAxis_Changed(Platform::Object^ sender, SelectionChangedEv
 
 	if (selection == L"X only")
 	{
-		// Set the object to not listen for translations on the Y axis
-		auto mode = manipulateMe->ManipulationMode;
-		manipulateMe->ManipulationMode = mode ^ ManipulationModes::TranslateY;
+		manipulationProcessor->LockToXAxis();
 	}
 	else if (selection == L"Y only")
 	{
-		auto mode = manipulateMe->ManipulationMode;
-		manipulateMe->ManipulationMode = mode ^ ManipulationModes::TranslateX;
-
+		manipulationProcessor->LockToYAxis();
+	}
+	else
+	{
+		manipulationProcessor->MoveOnXAndYAxes();
 	}
 }
 
 void MainPage::InertiaSwitch_Toggled(Platform::Object^ sender, RoutedEventArgs^ e)
 {
-	// Flip the current TranslateInertia and RotateInertia values in response to the
-	// InertiaSwitch being toggled
-	if (manipulateMe != nullptr)
+	if (manipulationProcessor == nullptr)
 	{
-		auto mode = manipulateMe->ManipulationMode;
-		auto update = ManipulationModes::TranslateInertia | ManipulationModes::RotateInertia;
-		manipulateMe->ManipulationMode = mode ^ update;
+		return;
 	}
-}
 
-//
-// More UI code below
-//
-void MainPage::InitOptions()
-{
-	movementAxis->SelectedIndex = 0;
-	inertiaSwitch->IsOn = true;
+	manipulationProcessor->UseInertia(InertiaSwitch->IsOn);
 }
 
 void MainPage::resetButton_Pressed(Platform::Object^ sender, RoutedEventArgs^ e)
 {
-	forceManipulationsToEnd = true;
-	manipulateMe->RenderTransform = nullptr;
-	movementAxis->SelectedIndex = 0;
 	InitOptions();
-	InitManipulationTransforms();
+	manipulationProcessor->Reset();
+}
+
+ManipulationInputProcessor::ManipulationInputProcessor(GestureRecognizer^ gestureRecognizer, UIElement^ target, UIElement^ referenceFrame)
+	: recognizer(gestureRecognizer)
+	, element(target)
+	, reference(referenceFrame)
+{
+	// Initialize the transforms that will be used to manipulate the shape
+	InitializeTransforms();
+
+	InitializeTransforms();
+
+	// The GestureSettings property dictates what manipulation events the
+	// Gesture Recognizer will listen to.  This will set it to a limited
+	// subset of these events.
+	recognizer->GestureSettings = GenerateDefaultSettings();
+
+	// Set up pointer event handlers. These receive input events that are used by the gesture recognizer->
+	element->PointerPressed += ref new PointerEventHandler(this, &ManipulationInputProcessor::OnPointerPressed);
+	element->PointerMoved += ref new PointerEventHandler(this, &ManipulationInputProcessor::OnPointerMoved);
+	element->PointerReleased += ref new PointerEventHandler(this, &ManipulationInputProcessor::OnPointerReleased);
+	element->PointerCanceled += ref new PointerEventHandler(this, &ManipulationInputProcessor::OnPointerCanceled);
+
+	// Set up event handlers to respond to gesture recognizer output
+	recognizer->ManipulationStarted += ref new TypedEventHandler<GestureRecognizer^, ManipulationStartedEventArgs^>(this, &ManipulationInputProcessor::OnManipulationStarted);
+	recognizer->ManipulationUpdated += ref new TypedEventHandler<GestureRecognizer^, ManipulationUpdatedEventArgs^>(this, &ManipulationInputProcessor::OnManipulationUpdated);
+	recognizer->ManipulationCompleted += ref new TypedEventHandler<GestureRecognizer^, ManipulationCompletedEventArgs^>(this, &ManipulationInputProcessor::OnManipulationCompleted);
+	recognizer->ManipulationInertiaStarting += ref new TypedEventHandler<GestureRecognizer^, ManipulationInertiaStartingEventArgs^>(this, &ManipulationInputProcessor::OnManipulationInertiaStarting);
+}
+
+void ManipulationInputProcessor::InitializeTransforms()
+{
+	cumulativeTransform = ref new TransformGroup();
+	deltaTransform = ref new CompositeTransform();
+	previousTransform = ref new MatrixTransform();
+	previousTransform->Matrix = Matrix::Identity;
+
+	cumulativeTransform->Children->Append(previousTransform);
+	cumulativeTransform->Children->Append(deltaTransform);
+
+	element->RenderTransform = cumulativeTransform;
+}
+
+// Return the default GestureSettings for this sample
+GestureSettings ManipulationInputProcessor::GenerateDefaultSettings()
+{
+	return GestureSettings::ManipulationTranslateX |
+		GestureSettings::ManipulationTranslateY |
+		GestureSettings::ManipulationRotate |
+		GestureSettings::ManipulationTranslateInertia |
+		GestureSettings::ManipulationRotateInertia;
+}
+
+// Route the pointer pressed event to the gesture recognizer->
+// The points are in the reference frame of the canvas that contains the rectangle element->
+void ManipulationInputProcessor::OnPointerPressed(Platform::Object^ sender, PointerRoutedEventArgs^ args)
+{
+	// Set the pointer capture to the element being interacted with so that only it
+	// will fire pointer-related events
+	element->CapturePointer(args->Pointer);
+
+	// Feed the current point into the gesture recognizer as a down event
+	recognizer->ProcessDownEvent(args->GetCurrentPoint(reference));
+}
+
+// Route the pointer moved event to the gesture recognizer->
+// The points are in the reference frame of the canvas that contains the rectangle element->
+void ManipulationInputProcessor::OnPointerMoved(Platform::Object^ sender, PointerRoutedEventArgs^ args)
+{
+	// Feed the set of points into the gesture recognizer as a move event
+	recognizer->ProcessMoveEvents(args->GetIntermediatePoints(reference));
+}
+
+// Route the pointer released event to the gesture recognizer->
+// The points are in the reference frame of the canvas that contains the rectangle element->
+void ManipulationInputProcessor::OnPointerReleased(Platform::Object^ sender, PointerRoutedEventArgs^ args)
+{
+	// Feed the current point into the gesture recognizer as an up event
+	recognizer->ProcessUpEvent(args->GetCurrentPoint(reference));
+
+	// Release the pointer
+	element->ReleasePointerCapture(args->Pointer);
+}
+
+// Route the pointer canceled event to the gesture recognizer->
+// The points are in the reference frame of the canvas that contains the rectangle element->
+void ManipulationInputProcessor::OnPointerCanceled(Platform::Object^ sender, PointerRoutedEventArgs^ args)
+{
+	recognizer->CompleteGesture();
+	element->ReleasePointerCapture(args->Pointer);
+}
+
+// When a manipulation begins, change the color of the Platform::Object^ to reflect
+// that a manipulation is in progress
+void ManipulationInputProcessor::OnManipulationStarted(GestureRecognizer^ sender, ManipulationStartedEventArgs^ e)
+{
+	Border^ b = dynamic_cast<Border^>(element);
+	b->Background = ref new SolidColorBrush(Windows::UI::Colors::DeepSkyBlue);
+}
+
+// Process the change resulting from a manipulation
+void ManipulationInputProcessor::OnManipulationUpdated(GestureRecognizer^ sender, ManipulationUpdatedEventArgs^ e)
+{
+	previousTransform->Matrix = cumulativeTransform->Value;
+
+	// Get the center point of the manipulation for rotation
+	Point center = Point(e->Position.X, e->Position.Y);
+	deltaTransform->CenterX = center.X;
+	deltaTransform->CenterY = center.Y;
+
+	// Look at the Delta property of the ManipulationDeltaRoutedEventArgs to retrieve
+	// the rotation, X, and Y changes
+	deltaTransform->Rotation = e->Delta.Rotation;
+	deltaTransform->TranslateX = e->Delta.Translation.X;
+	deltaTransform->TranslateY = e->Delta.Translation.Y;
+}
+
+// When a manipulation that's a result of inertia begins, change the color of the
+// the Platform::Object^ to reflect that inertia has taken over
+void ManipulationInputProcessor::OnManipulationInertiaStarting(GestureRecognizer^ sender, ManipulationInertiaStartingEventArgs^ e)
+{
+	Border^ b = dynamic_cast<Border^>(element);
+	b->Background = ref new SolidColorBrush(Windows::UI::Colors::RoyalBlue);
+}
+
+// When a manipulation has finished, reset the color of the Platform::Object^
+void ManipulationInputProcessor::OnManipulationCompleted(GestureRecognizer^ sender, ManipulationCompletedEventArgs^ e)
+{
+	Border^ b = dynamic_cast<Border^>(element);
+	b->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
+}
+
+// Modify the GestureSettings property to only allow movement on the X axis
+void ManipulationInputProcessor::LockToXAxis()
+{
+	recognizer->CompleteGesture();
+	auto mode = recognizer->GestureSettings;
+	auto update = GestureSettings::ManipulationTranslateY | GestureSettings::ManipulationTranslateX;
+	recognizer->GestureSettings = mode | update;
+	mode = recognizer->GestureSettings;
+	update = GestureSettings::ManipulationTranslateY;
+	recognizer->GestureSettings = mode ^ update;
+}
+
+// Modify the GestureSettings property to only allow movement on the Y axis
+void ManipulationInputProcessor::LockToYAxis()
+{
+	recognizer->CompleteGesture();
+	auto mode = recognizer->GestureSettings;
+	auto update = GestureSettings::ManipulationTranslateY | GestureSettings::ManipulationTranslateX;
+	recognizer->GestureSettings = mode | update;
+	mode = recognizer->GestureSettings;
+	update = GestureSettings::ManipulationTranslateX;
+	recognizer->GestureSettings = mode ^ update;
+}
+
+// Modify the GestureSettings property to allow movement on both the the X and Y axes
+void ManipulationInputProcessor::MoveOnXAndYAxes()
+{
+	recognizer->CompleteGesture();
+	auto mode = recognizer->GestureSettings;
+	auto update = GestureSettings::ManipulationTranslateX | GestureSettings::ManipulationTranslateY;
+	recognizer->GestureSettings = mode | update;
+}
+
+// Modify the GestureSettings property to enable or disable inertia based on the passed-in value
+void ManipulationInputProcessor::UseInertia(bool inertia)
+{
+	if (!inertia)
+	{
+		recognizer->CompleteGesture();
+		auto mode = recognizer->GestureSettings;
+		auto update = GestureSettings::ManipulationTranslateInertia | GestureSettings::ManipulationRotateInertia;
+		recognizer->GestureSettings = mode ^ update;
+	}
+	else
+	{
+		recognizer->CompleteGesture();
+		auto mode = recognizer->GestureSettings;
+		auto update = GestureSettings::ManipulationTranslateInertia | GestureSettings::ManipulationRotateInertia;
+		recognizer->GestureSettings = mode | update;
+	}
+}
+
+void ManipulationInputProcessor::Reset()
+{
+	element->RenderTransform = nullptr;
+	recognizer->CompleteGesture();
+	InitializeTransforms();
+	recognizer->GestureSettings = GenerateDefaultSettings();
 }
