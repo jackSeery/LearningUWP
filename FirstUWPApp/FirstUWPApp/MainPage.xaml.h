@@ -53,6 +53,8 @@ namespace FirstUWPApp
 		void resetButton_Pressed(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 
 		Windows::UI::Input::GestureRecognizer^ recognizer;
+		Windows::UI::Input::GestureRecognizer^ recognizerToo;
 		ManipulationInputProcessor^ manipulationProcessor;
+		ManipulationInputProcessor^ manipulationProcessorToo;
 	};
 }

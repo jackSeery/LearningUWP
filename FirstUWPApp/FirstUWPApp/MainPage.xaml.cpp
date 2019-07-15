@@ -32,10 +32,12 @@ MainPage::MainPage()
 	// Create a GestureRecognizer which will be used to process the manipulations
 	// done on the rectangle
 	recognizer = ref new GestureRecognizer();
+	recognizerToo = ref new GestureRecognizer();
 
 	// Create a ManipulationInputProcessor which will listen for events on the
 	// rectangle, process them, and update the rectangle's position, size, and rotation
 	manipulationProcessor = ref new ManipulationInputProcessor(recognizer, manipulateMe, mainCanvas);
+	manipulationProcessorToo = ref new ManipulationInputProcessor(recognizerToo, manipulateMeToo, mainCanvasToo);
 }
 
 void MainPage::InitOptions()
@@ -214,6 +216,7 @@ void ManipulationInputProcessor::OnManipulationCompleted(GestureRecognizer^ send
 {
 	Border^ b = dynamic_cast<Border^>(element);
 	b->Background = ref new SolidColorBrush(Windows::UI::Colors::LightGray);
+	
 }
 
 // Modify the GestureSettings property to only allow movement on the X axis
